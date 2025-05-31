@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "yarnwrap",
+  "version": "${version}",
+  "name": "Yarnwrap",
+  "description": "Minecraft wrapper libraries.",
+  "authors": [
+    "Siriusmart"
+  ],
+  "contact": {
+    "repo": "https://github.com/siriusmart/yarnwrap"
+  },
+  "icon": "assets/template/icon.png",
+  "custom": {},
+  "depends": {
+    "java": ">=21",
+    "minecraft": ["${mc_version}"]
+  },
+  "entrypoints": {
+    "main": [
+      "yarnwrap.Core"
+    ]
+  }
+}
