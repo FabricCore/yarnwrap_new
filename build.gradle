@@ -71,7 +71,7 @@ publishing {
   repositories {
     maven {
       name = "siriReposilite"
-      url = "https://maven.siri.ws/releases"
+      url = "https://maven.siri.ws/snapshots"
       credentials(PasswordCredentials)
       authentication {
         basic(BasicAuthentication)
@@ -82,7 +82,7 @@ publishing {
     maven(MavenPublication) {
       groupId = "ws.siri"
       artifactId = "yarnwrap"
-      version = "0.2.0-pre1"
+      version = "0.2.0-1"
       from components.java
     }
   }
