@@ -1,5 +1,6 @@
 plugins {
     id "fabric-loom" version "1.10-SNAPSHOT"
+    id 'maven-publish'
 }
 
 base {
@@ -64,4 +65,30 @@ allprojects {
         options.compilerArgs << "-Xmaxerrs" << "100000000"
     }
   }
+}
+
+publishing {
+  repositories {
+    maven {
+      name = "siriReposilite"
+      url = "https://maven.siri.ws/releases"
+      credentials(PasswordCredentials)
+      authentication {
+        basic(BasicAuthentication)
+      }
+    }
+  }
+  publications {
+    maven(MavenPublication) {
+      groupId = "ws.siri"
+      artifactId = "yarnwrap"
+      version = "0.2.0-pre1"
+      from components.java
+    }
+  }
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
 }
