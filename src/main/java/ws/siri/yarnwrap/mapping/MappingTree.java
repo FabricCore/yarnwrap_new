@@ -6,8 +6,6 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 
 import org.apache.commons.io.FilenameUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.mappingio.MappingReader;
@@ -17,8 +15,6 @@ import net.fabricmc.mappingio.tree.VisitableMappingTree;
 public class MappingTree {
     private static VisitableMappingTree mappingTree = new MemoryMappingTree();
     private static JavaPackage packageRoot = JavaPackage.root();
-
-    public static final Logger LOGGER = LoggerFactory.getLogger("yarnwrap");
 
     public static void init() {
         walkMappings(
