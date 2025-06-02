@@ -8,7 +8,7 @@
     "Siriusmart"
   ],
   "contact": {
-    "repo": "https://github.com/siriusmart/yarnwrap"
+    "repo": "https://github.com/fabriccore/yarnwrap_new"
   },
   "icon": "assets/template/icon.png",
   "custom": {},
@@ -18,7 +18,7 @@
   },
   "entrypoints": {
     "main": [
-      "yarnwrap.Core"
+      "ws.siri.yarnwrap.Core"
     ]
   }
 }

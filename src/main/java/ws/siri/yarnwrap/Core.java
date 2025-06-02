@@ -1,10 +1,13 @@
-package yarnwrap;
+package ws.siri.yarnwrap;
 
 import net.fabricmc.api.ModInitializer;
+import ws.siri.yarnwrap.mapping.MappingTree;
 
 public class Core implements ModInitializer {
     public static final String MOD_ID = "yarnwrap";
 
     @Override
-    public void onInitialize() {}
+    public void onInitialize() {
+        MappingTree.init();
+    }
 }

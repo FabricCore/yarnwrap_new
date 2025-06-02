@@ -1,4 +1,4 @@
-package yarnwrap.common;
+package ws.siri.yarnwrap.common;
 
 public interface ScriptRuntime {
     public Object evaluate(String expr, String label) throws Exception;

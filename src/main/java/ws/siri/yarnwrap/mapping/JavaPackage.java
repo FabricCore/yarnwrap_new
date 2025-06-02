@@ -1,9 +1,10 @@
-package yarnwrap.mapping;
+package ws.siri.yarnwrap.mapping;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 import net.fabricmc.mappingio.tree.MappingTree.ClassMapping;
 
@@ -15,9 +16,21 @@ public class JavaPackage implements JavaLike {
         return new JavaPackage();
     }
 
+    @Override
+    public String[] getQualifier() {
+        return path;
+    }
+
+    @Override
+    public String stringQualifier() {
+        return String.join("/", path);
+    }
+
     public void addClass(ClassMapping mapping) {
-        if(path.length != 0) throw new UnsupportedOperationException("addClass should only be used from root package");
-        insertClass(mapping, List.of(mapping.getName(0).split("/")));
+        if (path.length != 0)
+            throw new UnsupportedOperationException("addClass should only be used from root package");
+        String name = mapping.getName(0);
+        insertClass(mapping, List.of((name == null ? mapping.getSrcName() : mapping.getName(0)).split("/")));
     }
 
     private JavaPackage() {
@@ -29,7 +42,7 @@ public class JavaPackage implements JavaLike {
     }
 
     public void insertClass(JavaClass javaClass, String immediateName) {
-        if(children.containsKey(immediateName)) {
+        if (children.containsKey(immediateName)) {
             throw new RuntimeException("Key already exists `" + immediateName + "`");
         } else {
             children.put(immediateName, javaClass);
@@ -37,43 +50,43 @@ public class JavaPackage implements JavaLike {
     }
 
     @Override
-    public JavaLike getRelative(List<String> path) {
-        if(path.isEmpty()) {
-            return this;
-        } else if(children.containsKey(path.getFirst())) {
-            return children.get(path.getFirst());
+    public Optional<JavaLike> getRelative(List<String> path) {
+        if (path.isEmpty()) {
+            return Optional.of(this);
+        } else if (children.containsKey(path.getFirst())) {
+            return children.get(path.getFirst()).getRelative(path.subList(1, path.size()));
         } else {
-            return null;
+            return Optional.empty();
         }
     }
 
     public void insertClass(ClassMapping mapping, List<String> pathRemaining) {
         // if is a class
-        if(pathRemaining.size() == 1) {
+        if (pathRemaining.size() == 1) {
             JavaClass.insertClass(mapping, pathRemaining.getFirst(), this);
             return;
         }
 
-        if(!children.containsKey(pathRemaining.getFirst())) {
+        if (!children.containsKey(pathRemaining.getFirst())) {
             List<String> newPath = new ArrayList<>(Arrays.asList(path));
             newPath.add(pathRemaining.getFirst());
             children.put(pathRemaining.getFirst(), new JavaPackage(String.join("/", newPath)));
         }
 
         JavaLike immediateChild = children.get(pathRemaining.getFirst());
-            
-            if(immediateChild instanceof JavaPackage) {
-                ((JavaPackage) immediateChild).insertClass(mapping, pathRemaining.subList(1, pathRemaining.size()));
-            } else {
-                JavaClass.insertClass(mapping, pathRemaining.getFirst(), this);
-            }
+
+        if (immediateChild instanceof JavaPackage) {
+            ((JavaPackage) immediateChild).insertClass(mapping, pathRemaining.subList(1, pathRemaining.size()));
+        } else {
+            JavaClass.insertClass(mapping, pathRemaining.getFirst(), this);
+        }
     }
 
     @Override
     public String toString() {
         List<String> entries = new ArrayList<>();
         children.forEach((ignored, javaLike) -> entries.add(javaLike.toString()));
-        
+
         return String.join("\n", entries);
     }
 }
