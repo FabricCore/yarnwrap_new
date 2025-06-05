@@ -1,37 +1,48 @@
 package ws.siri.yarnwrap.mapping;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
+import org.jetbrains.annotations.NotNull;
+
 import net.fabricmc.mappingio.tree.MappingTree.ClassMapping;
 
+/**
+ * A single Java class
+ */
 public class JavaClass implements JavaLike {
+    /**
+     * Class mapping
+     * 
+     * Depending on the order which the classes are added,
+     * this may be null in case a child class is added before the parent class
+     */
     private ClassMapping mapping = null;
+    /**
+     * All child classes
+     */
     private HashMap<String, JavaClass> children = new HashMap<>();
 
+    /**
+     * @return ClassMapping of the current class
+     */
     public ClassMapping getMapping() {
         return mapping;
     }
 
     @Override
     public String[] getQualifier() {
-        String[] chunks = stringQualifier().split("\\$");
-        List<String> qualifier = new ArrayList<>(Arrays.asList(chunks[0].split("/")));
-        qualifier.addAll(Arrays.asList(chunks).subList(1, chunks.length));
-        return qualifier.toArray(new String[0]);
+        return stringQualifier().split("\\$|\\/");
     }
 
     @Override
     public String stringQualifier() {
         String name = mapping.getName(0);
-        return name == null ? mapping.getSrcName() : mapping.getName(0);
+        return name == null ? mapping.getSrcName() : name;
     }
 
-    private JavaClass() {
-    }
+    private JavaClass() {}
 
     private JavaClass(ClassMapping mapping, List<String> className) {
         if (className.isEmpty()) {
@@ -41,6 +52,11 @@ public class JavaClass implements JavaLike {
         }
     }
 
+    /**
+     * called to set a CLassMapping if a JavaClass is already created for a child class
+     * @param mapping
+     * @param remainingClassPath
+     */
     private void setMapping(ClassMapping mapping, List<String> remainingClassPath) {
         if (remainingClassPath.isEmpty()) {
             this.mapping = mapping;
@@ -55,6 +71,12 @@ public class JavaClass implements JavaLike {
         }
     }
 
+    /**
+     * Create a new class under a JavaPackage
+     * @param mapping class mapping
+     * @param className class name `ClassParent$ClassChild$ClassGrandchild`
+     * @param parent the JavaPackage the class belongs in
+     */
     public static void insertClass(ClassMapping mapping, String className, JavaPackage parent) {
         List<String> classPath = List.of(className.split("\\$"));
 
@@ -71,6 +93,16 @@ public class JavaClass implements JavaLike {
         }
     }
 
+    /**
+     * Get class mapping given a Class<?>
+     * @param target Class<?> of the Class
+     * @return
+     */
+    @NotNull
+    public static Optional<ClassMapping> getMapping(Class<?> target) {
+        return Optional.ofNullable(MappingTree.getMappingTree().getClass(target.getName().replace('.', '/')));
+    }
+
     @Override
     public Optional<JavaLike> getRelative(List<String> path) {
         if (path.isEmpty()) {
@@ -84,15 +116,19 @@ public class JavaClass implements JavaLike {
 
     @Override
     public String toString() {
-        List<String> entries = new ArrayList<>();
-
-        if (mapping != null) {
-            System.out.println("got here");
-            entries.add(String.format("%s -> %s", stringQualifier(), mapping.getSrcName()));
-        }
-
-        children.forEach((ignored, mapping) -> entries.add(mapping.toString()));
-
-        return String.join("\n", entries);
+        return mapping == null ? "[Mapping missing]" : String.format("%s -> %s", stringQualifier(), mapping.getSrcName());
     }
+
+    // @Override
+    // public String toString() {
+    //     List<String> entries = new ArrayList<>();
+
+    //     if (mapping != null) {
+    //         entries.add(String.format("%s -> %s", stringQualifier(), mapping.getSrcName()));
+    //     }
+
+    //     children.forEach((ignored, mapping) -> entries.add(mapping.toString()));
+
+    //     return String.join("\n", entries);
+    // }
 }

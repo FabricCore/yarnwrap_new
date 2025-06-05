@@ -6,7 +6,15 @@ import java.util.Optional;
 
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * An object with properties
+ */
 public interface JavaLike {
+    /**
+     * Get the relative path to the current object
+     * @param path
+     * @return
+     */
     @NotNull
     public Optional<JavaLike> getRelative(List<String> path);
 
@@ -20,12 +28,32 @@ public interface JavaLike {
         return getRelative(Arrays.asList(path));
     }
 
+    /**
+     * Get a class/object with its full path
+     * @param path full path, dot separated
+     * @return
+     */
+    @NotNull
+    static Optional<JavaLike> getWithPath(String path) {
+        return MappingTree.getRoot().getRelative(Arrays.asList(path.split("\\.")));
+    }
+
+    /**
+     * @return qualifier, i.e. full path split by `.`, `/` and `$`
+     */
     @NotNull
     public String[] getQualifier();
 
+    /**
+     * @return string qualifier of the class, in format `path/to/package$Class`
+     */
     @NotNull
     public String stringQualifier();
 
+    /**
+     * @return get immediate parent of class, or the class if called on an object, if exists
+     */
+    @NotNull
     default Optional<JavaLike> getParent() {
         String[] path = getQualifier();
 

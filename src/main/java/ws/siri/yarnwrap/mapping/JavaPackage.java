@@ -8,10 +8,23 @@ import java.util.Optional;
 
 import net.fabricmc.mappingio.tree.MappingTree.ClassMapping;
 
+/**
+ * A Java package is a collection of Java classes
+ */
 public class JavaPackage implements JavaLike {
+    /**
+     * Full path to package
+     */
     public final String[] path;
+    /**
+     * Child packages and classes
+     */
     private HashMap<String, JavaLike> children = new HashMap<>();
 
+    /**
+     * Return a new root package
+     * @return root package
+     */
     public static JavaPackage root() {
         return new JavaPackage();
     }
@@ -26,6 +39,10 @@ public class JavaPackage implements JavaLike {
         return String.join("/", path);
     }
 
+    /**
+     * Add a class mapping, should only be called for the root package
+     * @param mapping
+     */
     public void addClass(ClassMapping mapping) {
         if (path.length != 0)
             throw new UnsupportedOperationException("addClass should only be used from root package");
@@ -33,14 +50,26 @@ public class JavaPackage implements JavaLike {
         insertClass(mapping, List.of((name == null ? mapping.getSrcName() : mapping.getName(0)).split("/")));
     }
 
+    /**
+     * Create root package
+     */
     private JavaPackage() {
         path = new String[0];
     }
 
+    /**
+     * Create a package with a path
+     * @param qualifier path/separated/by/forward/slashes
+     */
     private JavaPackage(String qualifier) {
         path = qualifier.split("/");
     }
 
+    /**
+     * Insert a JavaClass to current package
+     * @param javaClass
+     * @param immediateName
+     */
     public void insertClass(JavaClass javaClass, String immediateName) {
         if (children.containsKey(immediateName)) {
             throw new RuntimeException("Key already exists `" + immediateName + "`");
@@ -60,6 +89,11 @@ public class JavaPackage implements JavaLike {
         }
     }
 
+    /**
+     * Insert class with class mapping
+     * @param mapping
+     * @param pathRemaining
+     */
     public void insertClass(ClassMapping mapping, List<String> pathRemaining) {
         // if is a class
         if (pathRemaining.size() == 1) {
