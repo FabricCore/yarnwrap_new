@@ -94,8 +94,8 @@ public class JavaClass implements JavaLike {
     }
 
     /**
-     * Get class mapping given a Class<?>
-     * @param target Class<?> of the Class
+     * Get class mapping given a Class&lt;?gt;
+     * @param target Class&lt;?&gt; of the Class
      * @return
      */
     @NotNull
