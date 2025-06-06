@@ -1,5 +1,9 @@
 package ws.siri.yarnwrap.mapping;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -42,7 +46,51 @@ public class JavaClass implements JavaLike {
         return name == null ? mapping.getSrcName() : name;
     }
 
-    private JavaClass() {}
+    public Method[] getMethod(String name, boolean staticOnly) {
+        List<Method> methods = new ArrayList<>();
+
+        Class<?> classObj;
+        try {
+            classObj = Class.forName(String.join(".", getQualifier()));
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(String.format("could not find class `%s`: %s", stringQualifier(), e));
+        }
+
+        mapping.getMethods().stream().forEach((methodMapping) -> {
+            if (methodMapping.getName(0).equals(name)) {
+                try {
+                    Method method = classObj.getMethod(methodMapping.getSrcName(),
+                            methodMapping.getArgs().stream().map((arg) -> {
+                                try {
+                                    return Class.forName(arg.getSrcName().replace("\\$|/", "."));
+                                } catch (ClassNotFoundException e) {
+                                    throw new RuntimeException(String.format("could not find class `%s` for args: %s",
+                                            arg.getSrcName(), e));
+                                }
+                            }).toArray(Class<?>[]::new));
+
+                    if (!Modifier.isStatic(method.getModifiers()) && staticOnly)
+                        return;
+
+                    methods.add(method);
+                } catch (NoSuchMethodException e) {
+                    throw new RuntimeException(String.format("could not find method `%s.%s`: %s", stringQualifier(),
+                            methodMapping.getSrcName(), e));
+                }
+            }
+        });
+
+        Optional<JavaLike> parent = getParent();
+
+        if (parent.isPresent() && parent.get() instanceof JavaClass) {
+            methods.addAll(Arrays.asList(((JavaClass) parent.get()).getMethod(name, staticOnly)));
+        }
+
+        return methods.toArray(Method[]::new);
+    }
+
+    private JavaClass() {
+    }
 
     private JavaClass(ClassMapping mapping, List<String> className) {
         if (className.isEmpty()) {
@@ -53,7 +101,9 @@ public class JavaClass implements JavaLike {
     }
 
     /**
-     * called to set a CLassMapping if a JavaClass is already created for a child class
+     * called to set a CLassMapping if a JavaClass is already created for a child
+     * class
+     * 
      * @param mapping
      * @param remainingClassPath
      */
@@ -73,9 +123,10 @@ public class JavaClass implements JavaLike {
 
     /**
      * Create a new class under a JavaPackage
-     * @param mapping class mapping
+     * 
+     * @param mapping   class mapping
      * @param className class name `ClassParent$ClassChild$ClassGrandchild`
-     * @param parent the JavaPackage the class belongs in
+     * @param parent    the JavaPackage the class belongs in
      */
     public static void insertClass(ClassMapping mapping, String className, JavaPackage parent) {
         List<String> classPath = List.of(className.split("\\$"));
@@ -95,6 +146,7 @@ public class JavaClass implements JavaLike {
 
     /**
      * Get class mapping given a Class&lt;?gt;
+     * 
      * @param target Class&lt;?&gt; of the Class
      * @return
      */
@@ -109,6 +161,19 @@ public class JavaClass implements JavaLike {
             return Optional.of(this);
         } else if (children.containsKey(path.getFirst())) {
             return children.get(path.getFirst()).getRelative(path.subList(1, path.size()));
+        } else if (path.size() == 1) {
+            String name = path.getFirst();
+
+            List<Method> methods = new ArrayList<>(Arrays.asList(getMethod(name, true)));
+            Optional<JavaLike> parent = getParent();
+
+            if (parent.isPresent() && parent.get() instanceof JavaClass) {
+                methods.addAll(Arrays.asList(((JavaClass) parent.get()).getMethod(name, true)));
+            }
+
+            if (methods.isEmpty())
+                return Optional.empty();
+            return Optional.of(new JavaFunction(methods.toArray(Method[]::new), stringQualifier() + "$" + name, this));
         } else {
             return Optional.empty();
         }
@@ -116,19 +181,21 @@ public class JavaClass implements JavaLike {
 
     @Override
     public String toString() {
-        return mapping == null ? "[Mapping missing]" : String.format("%s -> %s", stringQualifier(), mapping.getSrcName());
+        return mapping == null ? "[Mapping missing]"
+                : String.format("%s -> %s", stringQualifier(), mapping.getSrcName());
     }
 
     // @Override
     // public String toString() {
-    //     List<String> entries = new ArrayList<>();
+    // List<String> entries = new ArrayList<>();
 
-    //     if (mapping != null) {
-    //         entries.add(String.format("%s -> %s", stringQualifier(), mapping.getSrcName()));
-    //     }
+    // if (mapping != null) {
+    // entries.add(String.format("%s -> %s", stringQualifier(),
+    // mapping.getSrcName()));
+    // }
 
-    //     children.forEach((ignored, mapping) -> entries.add(mapping.toString()));
+    // children.forEach((ignored, mapping) -> entries.add(mapping.toString()));
 
-    //     return String.join("\n", entries);
+    // return String.join("\n", entries);
     // }
 }

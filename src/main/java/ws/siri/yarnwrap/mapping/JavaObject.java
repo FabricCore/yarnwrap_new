@@ -1,5 +1,7 @@
 package ws.siri.yarnwrap.mapping;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -28,7 +30,6 @@ public class JavaObject implements JavaLike {
      * @param internal object to wrap
      */
     public JavaObject(Object internal) {
-        System.out.println(internal.getClass().getName());
         this.internal = internal;
 
         Optional<ClassMapping> mapping = JavaClass.getMapping(internal.getClass());
@@ -39,7 +40,7 @@ public class JavaObject implements JavaLike {
 
             Optional<JavaLike> javaLike = MappingTree.getRoot().getRelative(Arrays.asList(name.split("/|\\$")));
 
-            if(javaLike.isPresent() && javaLike.get() instanceof JavaClass) {
+            if (javaLike.isPresent() && javaLike.get() instanceof JavaClass) {
                 this.type = Optional.of((JavaClass) javaLike.get());
             } else {
                 this.type = Optional.empty();
@@ -49,6 +50,13 @@ public class JavaObject implements JavaLike {
         }
     }
 
+    /**
+     * @return the underlying object
+     */
+    public Object get() {
+        return internal;
+    }
+
     @Override
     public String toString() {
         return String.format("JavaObject(%s)", internal);
@@ -56,13 +64,26 @@ public class JavaObject implements JavaLike {
 
     @Override
     public @NotNull Optional<JavaLike> getRelative(List<String> path) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getRelative'");
+        if (path.size() != 1)
+            return Optional.empty();
+
+        String name = path.getFirst();
+
+        List<Method> methods = new ArrayList<>(Arrays.stream(internal.getClass().getMethods())
+                .filter((method) -> method.getName().equals(name)).toList());
+
+        if (type.isPresent()) {
+            methods.addAll(Arrays.asList(type.get().getMethod(name, false)));
+        }
+
+        if (methods.isEmpty())
+            return Optional.empty();
+        return Optional.of(new JavaFunction(methods.toArray(Method[]::new), stringQualifier() + "$" + name, this));
     }
 
     @Override
     public @NotNull String[] getQualifier() {
-        if(type.isPresent()) {
+        if (type.isPresent()) {
             return type.get().getQualifier();
         } else {
             return internal.getClass().getName().split("\\.|\\$");
@@ -71,7 +92,7 @@ public class JavaObject implements JavaLike {
 
     @Override
     public @NotNull String stringQualifier() {
-        if(type.isPresent()) {
+        if (type.isPresent()) {
             return type.get().stringQualifier();
         } else {
             return internal.getClass().getName().replace('.', '/');

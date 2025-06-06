@@ -1,5 +1,7 @@
 # Yarnwrap (new)
 
+[**Maven (Snapshots)**](https://maven.siri.ws/#/snapshots/ws/siri/yarnwrap) | [**Discord**](https://discord.gg/WAR9aKVFQJ)
+
 Rewrite for Yarnwrap.
 
 ## Common
