@@ -51,18 +51,22 @@ public class JavaClass implements JavaLike {
 
         Class<?> classObj;
         try {
-            classObj = Class.forName(String.join(".", getQualifier()));
+            classObj = Class.forName(String.join(".", mapping.getSrcName().replace('/', '.')));
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(String.format("could not find class `%s`: %s", stringQualifier(), e));
         }
 
         mapping.getMethods().stream().forEach((methodMapping) -> {
-            if (methodMapping.getName(0).equals(name)) {
+            String methodName = methodMapping.getName(0);
+            if(methodName == null) methodName = methodMapping.getSrcName();
+            if (methodName.equals(name)) {
                 try {
                     Method method = classObj.getMethod(methodMapping.getSrcName(),
                             methodMapping.getArgs().stream().map((arg) -> {
                                 try {
-                                    return Class.forName(arg.getSrcName().replace("\\$|/", "."));
+                                    String argName = arg.getSrcName();
+                                    if(argName == null) argName = "java/lang/Object"; // probably?
+                                    return Class.forName(argName.replace('/', '.'));
                                 } catch (ClassNotFoundException e) {
                                     throw new RuntimeException(String.format("could not find class `%s` for args: %s",
                                             arg.getSrcName(), e));
@@ -182,7 +186,7 @@ public class JavaClass implements JavaLike {
     @Override
     public String toString() {
         return mapping == null ? "[Mapping missing]"
-                : String.format("%s -> %s", stringQualifier(), mapping.getSrcName());
+                : String.format("JavaClass(%s -> %s)", stringQualifier(), mapping.getSrcName());
     }
 
     // @Override

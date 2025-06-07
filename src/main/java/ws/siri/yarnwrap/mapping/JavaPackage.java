@@ -118,9 +118,13 @@ public class JavaPackage implements JavaLike {
 
     @Override
     public String toString() {
-        List<String> entries = new ArrayList<>();
-        children.forEach((ignored, javaLike) -> entries.add(javaLike.toString()));
-
-        return String.join("\n", entries);
+        return String.format("JavaPackage(%s)", stringQualifier());
     }
+    // @Override
+    // public String toString() {
+    //     List<String> entries = new ArrayList<>();
+    //     children.forEach((ignored, javaLike) -> entries.add(javaLike.toString()));
+
+    //     return String.join("\n", entries);
+    // }
 }

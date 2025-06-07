@@ -14,6 +14,7 @@ public class Core implements ModInitializer {
     }
 
     public static void main(String[] args) throws Exception {
+        System.out.println("test/test$test".replaceAll("/|\\$", "."));
         JavaObject obj = new JavaObject("hello");
         JavaFunction func = (JavaFunction) obj.getRelative("replace").get();
         System.out.println(func.run('e', '1'));
