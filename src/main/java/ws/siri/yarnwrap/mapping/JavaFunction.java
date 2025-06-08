@@ -9,6 +9,8 @@ import java.util.Optional;
 
 import org.jetbrains.annotations.NotNull;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Text;
 import ws.siri.yarnwrap.common.ScriptFunction;
 
 public class JavaFunction implements ScriptFunction, JavaLike {

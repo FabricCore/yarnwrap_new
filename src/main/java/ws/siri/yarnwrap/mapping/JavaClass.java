@@ -10,7 +10,6 @@ import java.util.Optional;
 
 import org.jetbrains.annotations.NotNull;
 
-import net.fabricmc.mappingio.format.proguard.ProGuardFileWriter;
 import net.fabricmc.mappingio.tree.MappingTree.ClassMapping;
 
 /**
@@ -50,13 +49,12 @@ public class JavaClass implements JavaLike {
     public static Method[] getSrcMethod(String name, boolean staticOnly, Class<?> type) {
         List<Method> methods = new ArrayList<>();
 
-        if (staticOnly) {
-            for (Method method : type.getDeclaredMethods()) {
-                if (!Modifier.isStatic(method.getModifiers()))
-                    methods.add(method);
-            }
-        } else {
-            methods.addAll(Arrays.asList(type.getDeclaredMethods()));
+        for (Method method : type.getDeclaredMethods()) {
+            if (staticOnly && !Modifier.isStatic(method.getModifiers()))
+                continue;
+
+            if (method.getName().equals(name))
+                methods.add(method);
         }
 
         for (Class<?> interfaceImpl : type.getInterfaces()) {
@@ -70,6 +68,68 @@ public class JavaClass implements JavaLike {
         }
 
         return methods.toArray(Method[]::new);
+    }
+
+    // modified from
+    // src/main/java/net/fabricmc/mappingio/format/proguard/ProGuardFileWriter.java
+    private static Class<?> toJavaType(String descriptor) {
+        StringBuilder result = new StringBuilder();
+        int arrayLevel = 0;
+
+        for (int i = 0; i < descriptor.length(); i++) {
+            switch (descriptor.charAt(i)) {
+                case '[':
+                    arrayLevel++;
+                    break;
+                case 'B':
+                    return byte.class;
+                case 'S':
+                    return short.class;
+                case 'I':
+                    return int.class;
+                case 'J':
+                    return long.class;
+                case 'F':
+                    return float.class;
+                case 'D':
+                    return double.class;
+                case 'C':
+                    return char.class;
+                case 'Z':
+                    return boolean.class;
+                case 'V':
+                    return void.class;
+                case 'L':
+                    while (i + 1 < descriptor.length()) {
+                        char c = descriptor.charAt(++i);
+
+                        if (c == '/') {
+                            result.append('.');
+                        } else if (c == ';') {
+                            break;
+                        } else {
+                            result.append(c);
+                        }
+                    }
+
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown character in descriptor: " + descriptor.charAt(i));
+            }
+        }
+
+        // TODO: This can be replaced by String.repeat in modern Java
+        while (arrayLevel > 0) {
+            result.append("[]");
+            arrayLevel--;
+        }
+
+        try {
+            return Class.forName(result.toString());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(
+                    String.format("class not found when parsing descriptor `%s`: %s", result.toString(), e));
+        }
     }
 
     public Method[] getMappedMethod(String name, boolean staticOnly) {
@@ -89,35 +149,13 @@ public class JavaClass implements JavaLike {
             if (methodName.equals(name)) {
                 try {
                     String desc = methodMapping.getSrcDesc();
-                    String[] args = Arrays
+                    Class<?>[] args = Arrays
                             .stream(desc.substring(desc.indexOf('(') + 1, desc.indexOf(')')).split(";"))
                             .filter((s) -> s.length() != 0)
-                            .map((descriptor) -> {
-                                try {
-                                    return (String) ProGuardFileWriter.class
-                                            .getDeclaredMethod("toJavaType", String.class)
-                                            .invoke(null, descriptor);
-
-                                } catch (Exception e) {
-                                    throw new RuntimeException(
-                                            "should not happen, just trying to call ProGuardFileWriter.toJavaType: "
-                                                    + e);
-                                }
-
-                            }).toArray(String[]::new);
-                    Class<?>[] classes = Arrays.stream(args)
-                            .map((arg) -> {
-                                try {
-                                    return Class.forName(arg.replace('/', '.'));
-                                } catch (Exception e) {
-                                    throw new RuntimeException(String.format("could not find class `%s` for args: %s",
-                                            arg, e));
-                                }
-                            })
-                            .toArray(Class<?>[]::new);
+                            .map(JavaClass::toJavaType).toArray(Class<?>[]::new);
 
                     Method method = classObj.getDeclaredMethod(methodMapping.getSrcName(),
-                            classes);
+                            args);
 
                     if (!Modifier.isStatic(method.getModifiers()) && staticOnly)
                         return;
