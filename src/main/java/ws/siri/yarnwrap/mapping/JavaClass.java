@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import org.jetbrains.annotations.NotNull;
 
+import net.fabricmc.mappingio.format.proguard.ProGuardFileWriter;
 import net.fabricmc.mappingio.tree.MappingTree.ClassMapping;
 
 /**
@@ -46,7 +47,32 @@ public class JavaClass implements JavaLike {
         return name == null ? mapping.getSrcName() : name;
     }
 
-    public Method[] getMethod(String name, boolean staticOnly) {
+    public static Method[] getSrcMethod(String name, boolean staticOnly, Class<?> type) {
+        List<Method> methods = new ArrayList<>();
+
+        if (staticOnly) {
+            for (Method method : type.getDeclaredMethods()) {
+                if (!Modifier.isStatic(method.getModifiers()))
+                    methods.add(method);
+            }
+        } else {
+            methods.addAll(Arrays.asList(type.getDeclaredMethods()));
+        }
+
+        for (Class<?> interfaceImpl : type.getInterfaces()) {
+            methods.addAll(Arrays.asList(getSrcMethod(name, staticOnly, interfaceImpl)));
+        }
+
+        try {
+            methods.addAll(Arrays.asList(getSrcMethod(name, staticOnly, type.getSuperclass())));
+        } catch (Exception e) {
+            // reached Object
+        }
+
+        return methods.toArray(Method[]::new);
+    }
+
+    public Method[] getMappedMethod(String name, boolean staticOnly) {
         List<Method> methods = new ArrayList<>();
 
         Class<?> classObj;
@@ -58,27 +84,47 @@ public class JavaClass implements JavaLike {
 
         mapping.getMethods().stream().forEach((methodMapping) -> {
             String methodName = methodMapping.getName(0);
-            if(methodName == null) methodName = methodMapping.getSrcName();
+            if (methodName == null)
+                methodName = methodMapping.getSrcName();
             if (methodName.equals(name)) {
                 try {
-                    Method method = classObj.getMethod(methodMapping.getSrcName(),
-                            methodMapping.getArgs().stream().map((arg) -> {
+                    String desc = methodMapping.getSrcDesc();
+                    String[] args = Arrays
+                            .stream(desc.substring(desc.indexOf('(') + 1, desc.indexOf(')')).split(";"))
+                            .filter((s) -> s.length() != 0)
+                            .map((descriptor) -> {
                                 try {
-                                    String argName = arg.getSrcName();
-                                    if(argName == null) argName = "java/lang/Object"; // probably?
-                                    return Class.forName(argName.replace('/', '.'));
-                                } catch (ClassNotFoundException e) {
-                                    throw new RuntimeException(String.format("could not find class `%s` for args: %s",
-                                            arg.getSrcName(), e));
+                                    return (String) ProGuardFileWriter.class
+                                            .getDeclaredMethod("toJavaType", String.class)
+                                            .invoke(null, descriptor);
+
+                                } catch (Exception e) {
+                                    throw new RuntimeException(
+                                            "should not happen, just trying to call ProGuardFileWriter.toJavaType: "
+                                                    + e);
                                 }
-                            }).toArray(Class<?>[]::new));
+
+                            }).toArray(String[]::new);
+                    Class<?>[] classes = Arrays.stream(args)
+                            .map((arg) -> {
+                                try {
+                                    return Class.forName(arg.replace('/', '.'));
+                                } catch (Exception e) {
+                                    throw new RuntimeException(String.format("could not find class `%s` for args: %s",
+                                            arg, e));
+                                }
+                            })
+                            .toArray(Class<?>[]::new);
+
+                    Method method = classObj.getDeclaredMethod(methodMapping.getSrcName(),
+                            classes);
 
                     if (!Modifier.isStatic(method.getModifiers()) && staticOnly)
                         return;
 
                     methods.add(method);
                 } catch (NoSuchMethodException e) {
-                    throw new RuntimeException(String.format("could not find method `%s.%s`: %s", stringQualifier(),
+                    throw new RuntimeException(String.format("could not find method `%s/%s`: %s", stringQualifier(),
                             methodMapping.getSrcName(), e));
                 }
             }
@@ -88,6 +134,20 @@ public class JavaClass implements JavaLike {
 
         if (parent.isPresent() && parent.get() instanceof JavaClass) {
             methods.addAll(Arrays.asList(((JavaClass) parent.get()).getMethod(name, staticOnly)));
+        }
+
+        return methods.toArray(Method[]::new);
+    }
+
+    public Method[] getMethod(String name, boolean staticOnly) {
+        List<Method> methods = new ArrayList<>();
+
+        methods.addAll(Arrays.asList(getMappedMethod(name, staticOnly)));
+        try {
+            methods.addAll(Arrays.asList(getSrcMethod(name, staticOnly,
+                    Class.forName(String.join(".", mapping.getSrcName().replace('/', '.'))))));
+        } catch (Exception e) {
+            throw new RuntimeException(String.format("could not find class `%s`: %s", stringQualifier(), e));
         }
 
         return methods.toArray(Method[]::new);
@@ -185,7 +245,7 @@ public class JavaClass implements JavaLike {
 
     @Override
     public String toString() {
-        return mapping == null ? "[Mapping missing]"
+        return mapping == null ? "JavaClass([Mapping missing])"
                 : String.format("JavaClass(%s -> %s)", stringQualifier(), mapping.getSrcName());
     }
 

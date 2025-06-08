@@ -59,7 +59,7 @@ public class JavaObject implements JavaLike {
 
     @Override
     public String toString() {
-        return String.format("JavaObject(%s)", internal);
+        return String.format("JavaObject(%s%s)", internal, type.isPresent() ? " -> " + type.get().stringQualifier() : "");
     }
 
     @Override
@@ -69,12 +69,14 @@ public class JavaObject implements JavaLike {
 
         String name = path.getFirst();
 
-        List<Method> methods = new ArrayList<>(Arrays.stream(internal.getClass().getMethods())
+        List<Method> methods = new ArrayList<>(Arrays.stream(internal.getClass().getDeclaredMethods())
                 .filter((method) -> method.getName().equals(name)).toList());
 
         if (type.isPresent()) {
             methods.addAll(Arrays.asList(type.get().getMethod(name, false)));
         }
+
+        methods.addAll(Arrays.asList(JavaClass.getSrcMethod(name, false, internal.getClass())));
 
         if (methods.isEmpty())
             return Optional.empty();
