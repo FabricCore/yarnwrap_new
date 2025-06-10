@@ -30,6 +30,7 @@ public class JavaObject implements JavaLike {
      * @param internal object to wrap
      */
     public JavaObject(Object internal) {
+        // TODO can maybe use JavaClass.getWithClass
         this.internal = internal;
 
         Optional<ClassMapping> mapping = JavaClass.getMapping(internal.getClass());

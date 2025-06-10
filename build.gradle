@@ -73,7 +73,7 @@ publishing {
     maven(MavenPublication) {
       groupId = "ws.siri"
       artifactId = "yarnwrap"
-      version = "0.2.0-4"
+      version = "0.2.0-5"
       from components.java
     }
   }

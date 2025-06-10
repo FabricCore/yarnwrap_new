@@ -1,5 +1,6 @@
 package ws.siri.yarnwrap.mapping;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
 import net.fabricmc.mappingio.tree.MappingTree.ClassMapping;
+import net.fabricmc.mappingio.tree.MappingTree.FieldMapping;
 
 /**
  * A single Java class
@@ -33,6 +35,56 @@ public class JavaClass implements JavaLike {
      */
     public ClassMapping getMapping() {
         return mapping;
+    }
+
+    public static Optional<JavaClass> getWithClass(Class<?> type) {
+        Optional<ClassMapping> mapping = JavaClass.getMapping(type);
+
+        if (mapping.isPresent()) {
+            String name = mapping.get().getName(0);
+            name = name == null ? mapping.get().getSrcName() : name;
+
+            Optional<JavaLike> javaLike = MappingTree.getRoot().getRelative(Arrays.asList(name.split("/|\\$")));
+
+            if (javaLike.isPresent() && javaLike.get() instanceof JavaClass) {
+                return Optional.of((JavaClass) javaLike.get());
+            } else {
+                return Optional.empty();
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Object> getMappedField(String name, Object source) {
+        Class<?> classObj;
+        try {
+            classObj = Class.forName(String.join(".", mapping.getSrcName().replace('/', '.')));
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(String.format("could not find class `%s`: %s", stringQualifier(), e));
+        }
+
+        for (FieldMapping fieldMapping : mapping.getFields()) {
+            String fieldName = fieldMapping.getName(0);
+            if (fieldName == null)
+                fieldName = fieldMapping.getSrcName();
+
+            if (!fieldName.equals(name))
+                continue;
+
+            try {
+                Field field = classObj.getDeclaredField(fieldMapping.getSrcName());
+                if (!Modifier.isStatic(field.getModifiers()) && source == null)
+                    continue;
+
+                return Optional.ofNullable(field.get(source));
+            } catch (Exception e) {
+                throw new RuntimeException(
+                        String.format("could not get declared field `%s/%s`: `%s`", stringQualifier(), name, e));
+            }
+        }
+
+        return Optional.empty();
     }
 
     @Override
@@ -168,10 +220,29 @@ public class JavaClass implements JavaLike {
             }
         });
 
-        Optional<JavaLike> parent = getParent();
+        // Optional<JavaLike> parent = getParent();
 
-        if (parent.isPresent() && parent.get() instanceof JavaClass) {
-            methods.addAll(Arrays.asList(((JavaClass) parent.get()).getMethod(name, staticOnly)));
+        // if (parent.isPresent() && parent.get() instanceof JavaClass) {
+        // methods.addAll(Arrays.asList(((JavaClass) parent.get()).getMethod(name,
+        // staticOnly)));
+        // }
+
+        for (Class<?> interfaceImpl : classObj.getInterfaces()) {
+            Optional<JavaClass> type = getWithClass(interfaceImpl);
+
+            if (type.isPresent()) {
+                methods.addAll(Arrays.asList(type.get().getMappedMethod(name, staticOnly)));
+            }
+        }
+
+        try {
+            Optional<JavaClass> type = getWithClass(classObj.getSuperclass());
+
+            if (type.isPresent()) {
+                methods.addAll(Arrays.asList(type.get().getMappedMethod(name, staticOnly)));
+            }
+        } catch (Exception e) {
+            // reached Object
         }
 
         return methods.toArray(Method[]::new);
