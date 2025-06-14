@@ -56,7 +56,7 @@ public class JavaClass implements JavaLike {
         }
     }
 
-    public Optional<Object> getMappedField(String name, Object source) {
+    public Optional<Field> getMappedField(String name, boolean staticOnly) {
         Class<?> classObj;
         try {
             classObj = Class.forName(String.join(".", mapping.getSrcName().replace('/', '.')));
@@ -74,10 +74,10 @@ public class JavaClass implements JavaLike {
 
             try {
                 Field field = classObj.getDeclaredField(fieldMapping.getSrcName());
-                if (!Modifier.isStatic(field.getModifiers()) && source == null)
+                if (!Modifier.isStatic(field.getModifiers()) && staticOnly)
                     continue;
 
-                return Optional.ofNullable(field.get(source));
+                return Optional.ofNullable(field);
             } catch (Exception e) {
                 throw new RuntimeException(
                         String.format("could not get declared field `%s/%s`: `%s`", stringQualifier(), name, e));
@@ -87,27 +87,28 @@ public class JavaClass implements JavaLike {
         return Optional.empty();
     }
 
-    public static Optional<Object> getSrcField(String name, Class<?> type, Object src) {
+    public static Optional<Field> getSrcField(String name, Class<?> type, boolean staticOnly) {
         try {
             Field found = type.getField(name);
-            return Optional.of(found.get(src));
+            if (!staticOnly || Modifier.isStatic(found.getModifiers()))
+                return Optional.of(found);
         } catch (Exception ignored) {
         }
 
         for (Class<?> interfaceImpl : type.getInterfaces()) {
-            Optional<Object> found = getSrcField(name, interfaceImpl, src);
+            Optional<Field> found = getSrcField(name, interfaceImpl, staticOnly);
             if (found.isPresent())
                 return found;
         }
 
         try {
-            return getSrcField(name, type.getSuperclass(), src);
+            return getSrcField(name, type.getSuperclass(), staticOnly);
         } catch (Exception e) {
             return Optional.empty();
         }
     }
 
-    public Optional<Object> getField(String name, Object src) {
+    public Optional<Field> getField(String name, boolean staticOnly) {
         Class<?> type;
 
         try {
@@ -116,12 +117,12 @@ public class JavaClass implements JavaLike {
             throw new RuntimeException("Could not get class when getting field: " + e);
         }
 
-        Optional<Object> res = getMappedField(name, src);
+        Optional<Field> res = getMappedField(name, staticOnly);
 
         if (res.isPresent())
             return res;
         else
-            return getSrcField(name, type, src);
+            return getSrcField(name, type, staticOnly);
     }
 
     @Override
@@ -363,6 +364,24 @@ public class JavaClass implements JavaLike {
     @NotNull
     public static Optional<ClassMapping> getMapping(Class<?> target) {
         return Optional.ofNullable(MappingTree.getMappingTree().getClass(target.getName().replace('.', '/')));
+    }
+
+    public boolean setField(String name, Object value) {
+        if(value instanceof JavaObject) {
+            value = ((JavaObject) value).internal;
+        }
+
+        try {
+            Optional<Field> field = getField(name, true);
+            if(field.isPresent()) {
+                field.get().set(null, value);
+                return true;
+            } else {
+                return false;
+            }
+        } catch(Exception e) {
+            throw new RuntimeException("Could not set field `" + name + "` because " + e);
+        }
     }
 
     @Override

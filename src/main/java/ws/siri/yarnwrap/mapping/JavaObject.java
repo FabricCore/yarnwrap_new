@@ -1,5 +1,6 @@
 package ws.siri.yarnwrap.mapping;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,7 +61,32 @@ public class JavaObject implements JavaLike {
 
     @Override
     public String toString() {
-        return String.format("JavaObject(%s%s)", internal, type.isPresent() ? " -> " + type.get().stringQualifier() : "");
+        return String.format("JavaObject(%s%s)", internal,
+                type.isPresent() ? " -> " + type.get().stringQualifier() : "");
+    }
+
+    public boolean setField(String name, Object value) {
+        if (value instanceof JavaObject) {
+            value = ((JavaObject) value).internal;
+        }
+
+        try {
+            Optional<Field> field;
+            if (type.isPresent()) {
+                field = type.get().getField(name, false);
+            } else {
+                field = JavaClass.getSrcField(name, internal.getClass(), false);
+            }
+
+            if (field.isPresent()) {
+                field.get().set(null, value);
+                return true;
+            } else {
+                return false;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Could not set field `" + name + "` because " + e);
+        }
     }
 
     @Override
@@ -70,14 +96,19 @@ public class JavaObject implements JavaLike {
 
         String name = path.getFirst();
 
-        Optional<Object> field;
-        if(type.isPresent()) {
-            field = type.get().getField(name, internal);
+        Optional<Field> field;
+        if (type.isPresent()) {
+            field = type.get().getField(name, false);
         } else {
-            field = JavaClass.getSrcField(name, internal.getClass(), internal);
+            field = JavaClass.getSrcField(name, internal.getClass(), false);
         }
 
-        if(field.isPresent()) return Optional.of(new JavaObject(field));
+        if (field.isPresent())
+            try {
+                return Optional.of(new JavaObject(field.get().get(internal)));
+            } catch (Exception e) {
+                throw new RuntimeException("Could not get field for object: " + e);
+            }
 
         List<Method> methods = new ArrayList<>(Arrays.stream(internal.getClass().getDeclaredMethods())
                 .filter((method) -> method.getName().equals(name)).toList());
