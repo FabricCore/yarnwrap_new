@@ -70,14 +70,23 @@ public class JavaObject implements JavaLike {
 
         String name = path.getFirst();
 
+        Optional<Object> field;
+        if(type.isPresent()) {
+            field = type.get().getField(name, internal);
+        } else {
+            field = JavaClass.getSrcField(name, internal.getClass(), internal);
+        }
+
+        if(field.isPresent()) return Optional.of(new JavaObject(field));
+
         List<Method> methods = new ArrayList<>(Arrays.stream(internal.getClass().getDeclaredMethods())
                 .filter((method) -> method.getName().equals(name)).toList());
 
         if (type.isPresent()) {
             methods.addAll(Arrays.asList(type.get().getMethod(name, false)));
+        } else {
+            methods.addAll(Arrays.asList(JavaClass.getSrcMethod(name, false, internal.getClass())));
         }
-
-        methods.addAll(Arrays.asList(JavaClass.getSrcMethod(name, false, internal.getClass())));
 
         if (methods.isEmpty())
             return Optional.empty();

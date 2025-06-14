@@ -87,6 +87,43 @@ public class JavaClass implements JavaLike {
         return Optional.empty();
     }
 
+    public static Optional<Object> getSrcField(String name, Class<?> type, Object src) {
+        try {
+            Field found = type.getField(name);
+            return Optional.of(found.get(src));
+        } catch (Exception ignored) {
+        }
+
+        for (Class<?> interfaceImpl : type.getInterfaces()) {
+            Optional<Object> found = getSrcField(name, interfaceImpl, src);
+            if (found.isPresent())
+                return found;
+        }
+
+        try {
+            return getSrcField(name, type.getSuperclass(), src);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Object> getField(String name, Object src) {
+        Class<?> type;
+
+        try {
+            type = Class.forName(String.join(".", mapping.getSrcName().replace('/', '.')));
+        } catch (Exception e) {
+            throw new RuntimeException("Could not get class when getting field: " + e);
+        }
+
+        Optional<Object> res = getMappedField(name, src);
+
+        if (res.isPresent())
+            return res;
+        else
+            return getSrcField(name, type, src);
+    }
+
     @Override
     public String[] getQualifier() {
         return stringQualifier().split("\\$|\\/");
