@@ -33,9 +33,10 @@ public class JavaFunction implements ScriptFunction, JavaLike {
 
     /**
      * construct a new JavaFunction
+     * 
      * @param potentialMethods list of all methods with that name
-     * @param qualifier string qualifier for the method
-     * @param parent parent object or class
+     * @param qualifier        string qualifier for the method
+     * @param parent           parent object or class
      */
     public JavaFunction(Executable[] potentialMethods, String qualifier, JavaLike parent) {
         Arrays.stream(potentialMethods)
@@ -46,6 +47,7 @@ public class JavaFunction implements ScriptFunction, JavaLike {
 
     /**
      * converts primitive classes to the Wrapped primitive classes (int -> Integer)
+     * 
      * @param primitiveClass
      * @return
      */
@@ -72,6 +74,7 @@ public class JavaFunction implements ScriptFunction, JavaLike {
 
     /**
      * check if type b can be converted to type a
+     * 
      * @param a
      * @param b
      * @return true if such conversion is possible
@@ -151,5 +154,10 @@ public class JavaFunction implements ScriptFunction, JavaLike {
     @Override
     public @NotNull String stringQualifier() {
         return qualifier;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("JavaPackage(%s)", stringQualifier());
     }
 }
