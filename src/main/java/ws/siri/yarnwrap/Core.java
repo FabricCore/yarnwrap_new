@@ -1,8 +1,8 @@
 package ws.siri.yarnwrap;
 
 import net.fabricmc.api.ModInitializer;
-import ws.siri.yarnwrap.mapping.JavaFunction;
-import ws.siri.yarnwrap.mapping.JavaObject;
+import ws.siri.yarnwrap.mapping.JavaClass;
+import ws.siri.yarnwrap.mapping.JavaLike;
 import ws.siri.yarnwrap.mapping.MappingTree;
 
 public class Core implements ModInitializer {
@@ -14,9 +14,8 @@ public class Core implements ModInitializer {
     }
 
     public static void main(String[] args) throws Exception {
-        System.out.println("test/test$test".replaceAll("/|\\$", "."));
-        JavaObject obj = new JavaObject("hello");
-        JavaFunction func = (JavaFunction) obj.getRelative("replace").get();
-        System.out.println(func.run('e', '1'));
+        MappingTree.init();
+        JavaClass obj = (JavaClass) JavaLike.getWithPath("net.minecraft.client.MinecraftClient").get();
+        System.out.println(obj.getRelative("<init>"));
     }
 }

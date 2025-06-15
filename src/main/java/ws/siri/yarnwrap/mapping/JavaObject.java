@@ -1,5 +1,6 @@
 package ws.siri.yarnwrap.mapping;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -65,6 +66,12 @@ public class JavaObject implements JavaLike {
                 type.isPresent() ? " -> " + type.get().stringQualifier() : "");
     }
 
+    /**
+     * this will throw an error if the field exists, but could not be set for whatever reason
+     * @param name name of field
+     * @param value new value of field
+     * @return returns true if updated, no otherwise
+     */
     public boolean setField(String name, Object value) {
         if (value instanceof JavaObject) {
             value = ((JavaObject) value).internal;
@@ -93,6 +100,15 @@ public class JavaObject implements JavaLike {
     public @NotNull Optional<JavaLike> getRelative(List<String> path) {
         if (path.size() != 1)
             return Optional.empty();
+
+        if (path.getFirst().equals("<init>")) {
+            Constructor<?>[] constructors = JavaClass.getConstructor(internal.getClass());
+
+            if (constructors.length == 0)
+                return Optional.empty();
+
+            return Optional.of(new JavaFunction(constructors, stringQualifier() + "$<init>", this));
+        }
 
         String name = path.getFirst();
 

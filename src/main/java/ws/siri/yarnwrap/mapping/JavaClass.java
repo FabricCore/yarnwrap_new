@@ -1,5 +1,6 @@
 package ws.siri.yarnwrap.mapping;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -37,6 +38,12 @@ public class JavaClass implements JavaLike {
         return mapping;
     }
 
+    /**
+     * Get a JavaClass with a Class
+     * 
+     * @param type Source class
+     * @return return Optional.of if there that class is in fabric mappings
+     */
     public static Optional<JavaClass> getWithClass(Class<?> type) {
         Optional<ClassMapping> mapping = JavaClass.getMapping(type);
 
@@ -56,6 +63,13 @@ public class JavaClass implements JavaLike {
         }
     }
 
+    /**
+     * get a field using its human readable name
+     * 
+     * @param name       name of the field
+     * @param staticOnly whether only static fields should be returned
+     * @return Optional.of if a field is found with that name
+     */
     public Optional<Field> getMappedField(String name, boolean staticOnly) {
         Class<?> classObj;
         try {
@@ -87,6 +101,15 @@ public class JavaClass implements JavaLike {
         return Optional.empty();
     }
 
+    /**
+     * get a field using its actual Java name (aka obfuscated name, also work for
+     * normal Java classes)
+     * 
+     * @param name       name of the field
+     * @param type       Class to get
+     * @param staticOnly whether only static fields should be returned
+     * @return Optional.of if a field is found with that name
+     */
     public static Optional<Field> getSrcField(String name, Class<?> type, boolean staticOnly) {
         try {
             Field found = type.getField(name);
@@ -108,6 +131,14 @@ public class JavaClass implements JavaLike {
         }
     }
 
+    /**
+     * Combines getSrcField and getField, the field with the human readable name has
+     * priority
+     * 
+     * @param name
+     * @param staticOnly
+     * @return
+     */
     public Optional<Field> getField(String name, boolean staticOnly) {
         Class<?> type;
 
@@ -136,6 +167,14 @@ public class JavaClass implements JavaLike {
         return name == null ? mapping.getSrcName() : name;
     }
 
+    /**
+     * get methods with the obfuscated name (works with normal Java classes)
+     * 
+     * @param name       name of the field
+     * @param staticOnly whether only static methods should be returned
+     * @param type       Class of the class to look at
+     * @return returns all the methods with that name, regardless of the parameters
+     */
     public static Method[] getSrcMethod(String name, boolean staticOnly, Class<?> type) {
         List<Method> methods = new ArrayList<>();
 
@@ -162,6 +201,12 @@ public class JavaClass implements JavaLike {
 
     // modified from
     // src/main/java/net/fabricmc/mappingio/format/proguard/ProGuardFileWriter.java
+    /**
+     * take a JVM descriptor and convert it to a Class
+     * 
+     * @param descriptor
+     * @return
+     */
     private static Class<?> toJavaType(String descriptor) {
         StringBuilder result = new StringBuilder();
         int arrayLevel = 0;
@@ -222,6 +267,48 @@ public class JavaClass implements JavaLike {
         }
     }
 
+    /**
+     * Get all the constructor of the class, given a class
+     * 
+     * @param type class to get constructor for
+     * @return
+     */
+    public static Constructor<?>[] getConstructor(Class<?> type) {
+        List<Constructor<?>> constructors = new ArrayList<>();
+
+        constructors.addAll(Arrays.asList(type.getDeclaredConstructors()));
+
+        try {
+            constructors.addAll(Arrays.asList(getConstructor(type.getSuperclass())));
+        } catch (Exception e) {
+        }
+
+        return constructors.toArray(Constructor<?>[]::new);
+    }
+
+    /**
+     * get all the constrsuctor for the current wrapped class
+     * 
+     * @return
+     */
+    public Constructor<?>[] getConstructor() {
+        Class<?> classObj;
+        try {
+            classObj = Class.forName(String.join(".", mapping.getSrcName().replace('/', '.')));
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(String.format("could not find class `%s`: %s", stringQualifier(), e));
+        }
+
+        return getConstructor(classObj);
+    }
+
+    /**
+     * get a method by its human readable name
+     * 
+     * @param name       the name of the method
+     * @param staticOnly whether only static methods should be included
+     * @return list of all methods with that name
+     */
     public Method[] getMappedMethod(String name, boolean staticOnly) {
         List<Method> methods = new ArrayList<>();
 
@@ -286,6 +373,13 @@ public class JavaClass implements JavaLike {
         return methods.toArray(Method[]::new);
     }
 
+    /**
+     * combines both getMappedMethod and getSrcMethod
+     * 
+     * @param name       name of the method to look for
+     * @param staticOnly whether only static methods should be included
+     * @return the list of all methods with that name
+     */
     public Method[] getMethod(String name, boolean staticOnly) {
         List<Method> methods = new ArrayList<>();
 
@@ -366,20 +460,28 @@ public class JavaClass implements JavaLike {
         return Optional.ofNullable(MappingTree.getMappingTree().getClass(target.getName().replace('.', '/')));
     }
 
+    /**
+     * set a static field to a new value, throw an error if the field is present but
+     * the could not set the value of the field for reasons
+     * 
+     * @param name  the name of the field
+     * @param value the static
+     * @return true if the field is present
+     */
     public boolean setField(String name, Object value) {
-        if(value instanceof JavaObject) {
+        if (value instanceof JavaObject) {
             value = ((JavaObject) value).internal;
         }
 
         try {
             Optional<Field> field = getField(name, true);
-            if(field.isPresent()) {
+            if (field.isPresent()) {
                 field.get().set(null, value);
                 return true;
             } else {
                 return false;
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException("Could not set field `" + name + "` because " + e);
         }
     }
@@ -392,6 +494,15 @@ public class JavaClass implements JavaLike {
             return children.get(path.getFirst()).getRelative(path.subList(1, path.size()));
         } else if (path.size() == 1) {
             String name = path.getFirst();
+
+            if (name.equals("<init>")) {
+                Constructor<?>[] constructors = getConstructor();
+
+                if (constructors.length == 0)
+                    return Optional.empty();
+
+                return Optional.of(new JavaFunction(constructors, stringQualifier() + "$<init>", this));
+            }
 
             List<Method> methods = new ArrayList<>(Arrays.asList(getMethod(name, true)));
             Optional<JavaLike> parent = getParent();

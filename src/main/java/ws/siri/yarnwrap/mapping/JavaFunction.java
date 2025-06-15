@@ -1,5 +1,7 @@
 package ws.siri.yarnwrap.mapping;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -11,18 +13,42 @@ import org.jetbrains.annotations.NotNull;
 
 import ws.siri.yarnwrap.common.ScriptFunction;
 
+/**
+ * Represents a set of overloaded methods with the same name, chooses the
+ * correct method to execute when called with specific parameters
+ */
 public class JavaFunction implements ScriptFunction, JavaLike {
-    public final HashMap<Class<?>[], Method> methods = new HashMap<>();
+    /**
+     * collection of the methods and their parameters
+     */
+    public final HashMap<Class<?>[], Executable> methods = new HashMap<>();
+    /**
+     * string qualifier for the method
+     */
     public final String qualifier;
+    /**
+     * parent object or class
+     */
     public final JavaLike parent;
 
-    public JavaFunction(Method[] potentialMethods, String qualifier, JavaLike parent) {
+    /**
+     * construct a new JavaFunction
+     * @param potentialMethods list of all methods with that name
+     * @param qualifier string qualifier for the method
+     * @param parent parent object or class
+     */
+    public JavaFunction(Executable[] potentialMethods, String qualifier, JavaLike parent) {
         Arrays.stream(potentialMethods)
                 .forEach((method) -> methods.put(method.getParameterTypes(), method));
         this.qualifier = qualifier;
         this.parent = parent;
     }
 
+    /**
+     * converts primitive classes to the Wrapped primitive classes (int -> Integer)
+     * @param primitiveClass
+     * @return
+     */
     private static Class<?> primitiveWrapper(Class<?> primitiveClass) {
         if (primitiveClass == int.class)
             return Integer.class;
@@ -44,7 +70,13 @@ public class JavaFunction implements ScriptFunction, JavaLike {
         throw new UnsupportedOperationException(primitiveClass.getName() + " is not a primitive");
     }
 
-    private boolean areEquivalent(Class<?> a, Class<?> b) {
+    /**
+     * check if type b can be converted to type a
+     * @param a
+     * @param b
+     * @return true if such conversion is possible
+     */
+    public boolean areEquivalent(Class<?> a, Class<?> b) {
         if (a.isAssignableFrom(b))
             return true;
 
@@ -56,6 +88,9 @@ public class JavaFunction implements ScriptFunction, JavaLike {
         return a == b;
     }
 
+    /**
+     * runs the function with specific parameters
+     */
     public Object run(Object... args) throws Exception {
         for (int i = 0; i < args.length; i++) {
             if (args[0] instanceof JavaObject) {
@@ -65,10 +100,10 @@ public class JavaFunction implements ScriptFunction, JavaLike {
 
         Class<?>[] argTypes = Arrays.stream(args).map((arg) -> arg.getClass()).toArray(Class<?>[]::new);
 
-        Method method = null;
+        Executable executable = null;
 
         if (methods.containsKey(argTypes)) {
-            method = methods.get(argTypes);
+            executable = methods.get(argTypes);
         } else {
             signatureLoop: for (Class<?>[] signature : methods.keySet()) {
                 if (signature.length != argTypes.length)
@@ -79,22 +114,27 @@ public class JavaFunction implements ScriptFunction, JavaLike {
                         continue signatureLoop;
                 }
 
-                method = methods.get(signature);
+                executable = methods.get(signature);
                 break signatureLoop;
             }
 
-            if (method == null)
+            if (executable == null)
                 throw new UnsupportedOperationException(
                         String.format("no method implementation with arguments `%s`", Arrays.toString(argTypes)));
         }
 
-        if (Modifier.isStatic(method.getModifiers())) {
-            return method.invoke(null, args);
-        } else if (parent instanceof JavaObject) {
-            return method.invoke(((JavaObject) parent).internal, args);
+        if (executable instanceof Constructor) {
+            return new JavaObject(((Constructor<?>) executable).newInstance(args));
         } else {
-            throw new UnsupportedOperationException(
-                    String.format("no static implementation with arguments `%s`", Arrays.toString(argTypes)));
+            Method method = (Method) executable;
+            if (Modifier.isStatic(method.getModifiers())) {
+                return method.invoke(null, args);
+            } else if (parent instanceof JavaObject) {
+                return method.invoke(((JavaObject) parent).internal, args);
+            } else {
+                throw new UnsupportedOperationException(
+                        String.format("no static implementation with arguments `%s`", Arrays.toString(argTypes)));
+            }
         }
     }
 
