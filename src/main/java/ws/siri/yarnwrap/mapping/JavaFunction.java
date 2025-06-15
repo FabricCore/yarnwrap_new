@@ -124,7 +124,7 @@ public class JavaFunction implements ScriptFunction, JavaLike {
         }
 
         if (executable instanceof Constructor) {
-            return new JavaObject(((Constructor<?>) executable).newInstance(args));
+            return ((Constructor<?>) executable).newInstance(args);
         } else {
             Method method = (Method) executable;
             if (Modifier.isStatic(method.getModifiers())) {
