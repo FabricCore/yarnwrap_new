@@ -274,16 +274,17 @@ public class JavaClass implements JavaLike {
      * @return
      */
     public static Constructor<?>[] getConstructor(Class<?> type) {
-        List<Constructor<?>> constructors = new ArrayList<>();
+        return type.getDeclaredConstructors();
+        // List<Constructor<?>> constructors = new ArrayList<>();
 
-        constructors.addAll(Arrays.asList(type.getDeclaredConstructors()));
+        // constructors.addAll(Arrays.asList());
 
-        try {
-            constructors.addAll(Arrays.asList(getConstructor(type.getSuperclass())));
-        } catch (Exception e) {
-        }
+        // try {
+        //     constructors.addAll(Arrays.asList(getConstructor(type.getSuperclass())));
+        // } catch (Exception e) {
+        // }
 
-        return constructors.toArray(Constructor<?>[]::new);
+        // return constructors.toArray(Constructor<?>[]::new);
     }
 
     /**
