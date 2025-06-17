@@ -79,7 +79,7 @@ public class JavaPackage implements JavaLike {
     }
 
     @Override
-    public Optional<JavaLike> getRelative(List<String> path) {
+    public Optional<Object> getRelative(List<String> path) {
         if (path.isEmpty()) {
             return Optional.of(this);
         } else if (children.containsKey(path.getFirst())) {

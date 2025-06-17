@@ -51,7 +51,7 @@ public class JavaClass implements JavaLike {
             String name = mapping.get().getName(0);
             name = name == null ? mapping.get().getSrcName() : name;
 
-            Optional<JavaLike> javaLike = MappingTree.getRoot().getRelative(Arrays.asList(name.split("/|\\$")));
+            Optional<Object> javaLike = MappingTree.getRoot().getRelative(Arrays.asList(name.split("/|\\$")));
 
             if (javaLike.isPresent() && javaLike.get() instanceof JavaClass) {
                 return Optional.of((JavaClass) javaLike.get());
@@ -436,7 +436,8 @@ public class JavaClass implements JavaLike {
     public static void insertClass(ClassMapping mapping, String className, JavaPackage parent) {
         List<String> classPath = List.of(className.split("\\$"));
 
-        Optional<JavaLike> immediateChild = parent.getRelative(classPath.getFirst());
+        // must be a class, force cast
+        Optional<JavaLike> immediateChild = parent.getRelative(classPath.getFirst()).map((item) -> (JavaLike) item);
 
         if (immediateChild.isEmpty()) {
             parent.insertClass(new JavaClass(mapping, classPath.subList(1, classPath.size())), classPath.getFirst());
@@ -469,9 +470,7 @@ public class JavaClass implements JavaLike {
      * @return true if the field is present
      */
     public boolean setField(String name, Object value) {
-        if (value instanceof JavaObject) {
-            value = ((JavaObject) value).internal;
-        }
+        value = JavaObject.unwrapAll(value);
 
         try {
             Optional<Field> field = getField(name, true);
@@ -487,7 +486,7 @@ public class JavaClass implements JavaLike {
     }
 
     @Override
-    public Optional<JavaLike> getRelative(List<String> path) {
+    public Optional<Object> getRelative(List<String> path) {
         if (path.isEmpty()) {
             return Optional.of(this);
         } else if (children.containsKey(path.getFirst())) {
@@ -503,6 +502,15 @@ public class JavaClass implements JavaLike {
 
                 return Optional.of(new JavaFunction(constructors, stringQualifier() + "$<init>", this));
             }
+
+            Optional<Field> field = getField(name, true);
+
+            if (field.isPresent())
+                try {
+                    return Optional.of(JavaObject.autoWrap(field.get().get(null)));
+                } catch (Exception e) {
+                    throw new RuntimeException("Could not get field for class: " + e);
+                }
 
             List<Method> methods = new ArrayList<>(Arrays.asList(getMethod(name, true)));
             Optional<JavaLike> parent = getParent();

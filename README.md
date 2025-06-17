@@ -1,6 +1,6 @@
 # Yarnwrap (new)
 
-[**Maven (Snapshots)**](https://maven.siri.ws/#/snapshots/ws/siri/yarnwrap) | [**Discord**](https://discord.gg/WAR9aKVFQJ)
+[**Maven (Snapshots & Downloads)**](https://maven.siri.ws/#/snapshots/ws/siri/yarnwrap) | [**Discord**](https://discord.gg/WAR9aKVFQJ)
 
 Rewrite for Yarnwrap.
 

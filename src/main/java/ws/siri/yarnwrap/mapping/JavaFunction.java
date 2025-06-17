@@ -96,9 +96,7 @@ public class JavaFunction implements ScriptFunction, JavaLike {
      */
     public Object run(Object... args) throws Exception {
         for (int i = 0; i < args.length; i++) {
-            if (args[0] instanceof JavaObject) {
-                args[0] = ((JavaObject) args[0]).get();
-            }
+            args[i] = JavaObject.unwrapAll(args[i]);
         }
 
         Class<?>[] argTypes = Arrays.stream(args).map((arg) -> arg.getClass()).toArray(Class<?>[]::new);
@@ -127,13 +125,13 @@ public class JavaFunction implements ScriptFunction, JavaLike {
         }
 
         if (executable instanceof Constructor) {
-            return ((Constructor<?>) executable).newInstance(args);
+            return JavaObject.autoWrap(((Constructor<?>) executable).newInstance(args));
         } else {
             Method method = (Method) executable;
             if (Modifier.isStatic(method.getModifiers())) {
-                return method.invoke(null, args);
+                return JavaObject.autoWrap(method.invoke(null, args));
             } else if (parent instanceof JavaObject) {
-                return method.invoke(((JavaObject) parent).internal, args);
+                return JavaObject.autoWrap(method.invoke(JavaObject.unwrapAll(parent), args));
             } else {
                 throw new UnsupportedOperationException(
                         String.format("no static implementation with arguments `%s`", Arrays.toString(argTypes)));
@@ -142,7 +140,7 @@ public class JavaFunction implements ScriptFunction, JavaLike {
     }
 
     @Override
-    public @NotNull Optional<JavaLike> getRelative(List<String> path) {
+    public @NotNull Optional<Object> getRelative(List<String> path) {
         return Optional.empty();
     }
 

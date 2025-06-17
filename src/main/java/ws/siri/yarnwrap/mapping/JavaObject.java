@@ -5,6 +5,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +42,7 @@ public class JavaObject implements JavaLike {
             String name = mapping.get().getName(0);
             name = name == null ? mapping.get().getSrcName() : name;
 
-            Optional<JavaLike> javaLike = MappingTree.getRoot().getRelative(Arrays.asList(name.split("/|\\$")));
+            Optional<Object> javaLike = MappingTree.getRoot().getRelative(Arrays.asList(name.split("/|\\$")));
 
             if (javaLike.isPresent() && javaLike.get() instanceof JavaClass) {
                 this.type = Optional.of((JavaClass) javaLike.get());
@@ -67,15 +68,15 @@ public class JavaObject implements JavaLike {
     }
 
     /**
-     * this will throw an error if the field exists, but could not be set for whatever reason
-     * @param name name of field
+     * this will throw an error if the field exists, but could not be set for
+     * whatever reason
+     * 
+     * @param name  name of field
      * @param value new value of field
      * @return returns true if updated, no otherwise
      */
     public boolean setField(String name, Object value) {
-        if (value instanceof JavaObject) {
-            value = ((JavaObject) value).internal;
-        }
+        value = unwrapAll(value);
 
         try {
             Optional<Field> field;
@@ -97,7 +98,7 @@ public class JavaObject implements JavaLike {
     }
 
     @Override
-    public @NotNull Optional<JavaLike> getRelative(List<String> path) {
+    public @NotNull Optional<Object> getRelative(List<String> path) {
         if (path.size() != 1)
             return Optional.empty();
 
@@ -121,7 +122,7 @@ public class JavaObject implements JavaLike {
 
         if (field.isPresent())
             try {
-                return Optional.of(new JavaObject(field.get().get(internal)));
+                return Optional.of(autoWrap(field.get().get(internal)));
             } catch (Exception e) {
                 throw new RuntimeException("Could not get field for object: " + e);
             }
@@ -156,5 +157,77 @@ public class JavaObject implements JavaLike {
         } else {
             return internal.getClass().getName().replace('.', '/');
         }
+    }
+
+    /**
+     * List of all class/classes that beging with this path to use the raw value
+     * instead of wrapping it
+     */
+    public static HashSet<String> doNotWrap = new HashSet<>(Arrays.asList(new String[] {
+            "java"
+    }));
+
+    /**
+     * Add a class to not wrap
+     * 
+     * @param name
+     * @return
+     */
+    public static boolean addNoWrap(String name) {
+        return doNotWrap.add(name);
+    }
+
+    /**
+     * Check if an object should be wrapped, returns true if not in the noWrap set
+     * 
+     * @param source
+     * @return
+     */
+    public static boolean shouldWrap(Object source) {
+        if (source instanceof JavaObject) {
+            return shouldWrap(((JavaObject) source).internal);
+        }
+
+        String[] path = source.getClass().getName().split("\\.|\\$|/");
+        for (int i = 1; i < path.length; i++) {
+            System.out.println(Arrays.asList(path).subList(0, i));
+            if (doNotWrap.contains(String.join(".", Arrays.asList(path).subList(0, i).toArray(String[]::new)))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * remove all wrappings from an object
+     * 
+     * @param source
+     * @return
+     */
+    public static Object unwrapAll(Object source) {
+        if (source instanceof JavaObject) {
+            return unwrapAll(((JavaObject) source).internal);
+        }
+
+        return source;
+    }
+
+    /**
+     * automatically decide whether an object should be wrapped
+     * 
+     * @param source
+     * @return
+     */
+    public static Object autoWrap(Object source) {
+        if (shouldWrap(source)) {
+            if (source instanceof JavaLike) {
+                return source;
+            }
+
+            return new JavaObject(source);
+        }
+
+        return unwrapAll(source);
     }
 }

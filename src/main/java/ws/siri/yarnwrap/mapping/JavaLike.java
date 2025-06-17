@@ -11,20 +11,20 @@ import org.jetbrains.annotations.NotNull;
  */
 public interface JavaLike {
     /**
-     * Get the relative path to the current object
+     * Get with relative path to the current object
      * @param path
      * @return
      */
     @NotNull
-    public Optional<JavaLike> getRelative(List<String> path);
+    public Optional<Object> getRelative(List<String> path);
 
     @NotNull
-    default Optional<JavaLike> getRelative(String immediateName) {
+    default Optional<Object> getRelative(String immediateName) {
         return getRelative(List.of(immediateName));
     }
 
     @NotNull
-    default Optional<JavaLike> getRelative(String[] path) {
+    default Optional<Object> getRelative(String[] path) {
         return getRelative(Arrays.asList(path));
     }
 
@@ -34,7 +34,7 @@ public interface JavaLike {
      * @return
      */
     @NotNull
-    static Optional<JavaLike> getWithPath(String path) {
+    static Optional<Object> getWithPath(String path) {
         return MappingTree.getRoot().getRelative(Arrays.asList(path.split("\\.")));
     }
 
@@ -60,6 +60,7 @@ public interface JavaLike {
         if (path.length == 0)
             return Optional.empty();
 
-        return MappingTree.getRoot().getRelative(Arrays.asList(path).subList(0, path.length - 1));
+        // must be JavaLike, force cast
+        return MappingTree.getRoot().getRelative(Arrays.asList(path).subList(0, path.length - 1)).map((item) -> (JavaLike) item);
     }
 }
