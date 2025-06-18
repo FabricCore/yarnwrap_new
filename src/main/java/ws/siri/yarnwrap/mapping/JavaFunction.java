@@ -2,6 +2,7 @@ package ws.siri.yarnwrap.mapping;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -128,14 +129,19 @@ public class JavaFunction implements ScriptFunction, JavaLike {
             return JavaObject.autoWrap(((Constructor<?>) executable).newInstance(args));
         } else {
             Method method = (Method) executable;
-            if (Modifier.isStatic(method.getModifiers())) {
-                return JavaObject.autoWrap(method.invoke(null, args));
-            } else if (parent instanceof JavaObject) {
-                return JavaObject.autoWrap(method.invoke(JavaObject.unwrapAll(parent), args));
-            } else {
-                throw new UnsupportedOperationException(
-                        String.format("no static implementation with arguments `%s`", Arrays.toString(argTypes)));
+            try {
+                if (Modifier.isStatic(method.getModifiers())) {
+                    return JavaObject.autoWrap(method.invoke(null, args));
+                } else if (parent instanceof JavaObject) {
+                    return JavaObject.autoWrap(method.invoke(JavaObject.unwrapAll(parent), args));
+                } else {
+                    throw new UnsupportedOperationException(
+                            String.format("no static implementation with arguments `%s`", Arrays.toString(argTypes)));
+                }
+            } catch (InvocationTargetException e) {
+                throw new Exception(e.getTargetException());
             }
+
         }
     }
 

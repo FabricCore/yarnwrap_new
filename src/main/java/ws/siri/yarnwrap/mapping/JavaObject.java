@@ -184,13 +184,14 @@ public class JavaObject implements JavaLike {
      * @return
      */
     public static boolean shouldWrap(Object source) {
+        if(source == null) return false;
+
         if (source instanceof JavaObject) {
             return shouldWrap(((JavaObject) source).internal);
         }
 
         String[] path = source.getClass().getName().split("\\.|\\$|/");
         for (int i = 1; i < path.length; i++) {
-            System.out.println(Arrays.asList(path).subList(0, i));
             if (doNotWrap.contains(String.join(".", Arrays.asList(path).subList(0, i).toArray(String[]::new)))) {
                 return false;
             }
