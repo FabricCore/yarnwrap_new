@@ -28,6 +28,10 @@ public class MappingTree {
      */
     private static JavaPackage packageRoot = JavaPackage.root();
 
+    static {
+        init();
+    }
+
     /**
      * Initialises mapping tree using a copy of yarn mappings.
      */
