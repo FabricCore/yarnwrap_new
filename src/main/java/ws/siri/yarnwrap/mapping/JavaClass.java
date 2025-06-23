@@ -208,33 +208,38 @@ public class JavaClass implements JavaLike {
      * @return
      */
     private static Class<?> toJavaType(String descriptor) {
+        switch (descriptor.charAt(0)) {
+            case 'B':
+                return byte.class;
+            case 'S':
+                return short.class;
+            case 'I':
+                return int.class;
+            case 'J':
+                return long.class;
+            case 'F':
+                return float.class;
+            case 'D':
+                return double.class;
+            case 'C':
+                return char.class;
+            case 'Z':
+                return boolean.class;
+            case 'V':
+                return void.class;
+        }
+
         StringBuilder result = new StringBuilder();
         int arrayLevel = 0;
+        boolean isObject = false;
 
         for (int i = 0; i < descriptor.length(); i++) {
             switch (descriptor.charAt(i)) {
                 case '[':
                     arrayLevel++;
                     break;
-                case 'B':
-                    return byte.class;
-                case 'S':
-                    return short.class;
-                case 'I':
-                    return int.class;
-                case 'J':
-                    return long.class;
-                case 'F':
-                    return float.class;
-                case 'D':
-                    return double.class;
-                case 'C':
-                    return char.class;
-                case 'Z':
-                    return boolean.class;
-                case 'V':
-                    return void.class;
                 case 'L':
+                    isObject = true;
                     while (i + 1 < descriptor.length()) {
                         char c = descriptor.charAt(++i);
 
@@ -248,15 +253,28 @@ public class JavaClass implements JavaLike {
                     }
 
                     break;
+                case 'B':
+                case 'S':
+                case 'I':
+                case 'J':
+                case 'F':
+                case 'D':
+                case 'C':
+                case 'Z':
+                case 'V':
+                    result.append(descriptor.charAt(i));
+                    break;
                 default:
                     throw new IllegalArgumentException("Unknown character in descriptor: " + descriptor.charAt(i));
             }
         }
 
-        // TODO: This can be replaced by String.repeat in modern Java
-        while (arrayLevel > 0) {
-            result.append("[]");
-            arrayLevel--;
+        if (arrayLevel != 0) {
+            if (isObject) {
+                result.insert(0, 'L');
+            }
+            result.insert(0, "[".repeat(arrayLevel));
+            result.append(';');
         }
 
         try {
@@ -280,7 +298,7 @@ public class JavaClass implements JavaLike {
         // constructors.addAll(Arrays.asList());
 
         // try {
-        //     constructors.addAll(Arrays.asList(getConstructor(type.getSuperclass())));
+        // constructors.addAll(Arrays.asList(getConstructor(type.getSuperclass())));
         // } catch (Exception e) {
         // }
 
