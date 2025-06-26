@@ -127,6 +127,11 @@ public class JavaObject implements JavaLike {
                 throw new RuntimeException("Could not get field for object: " + e);
             }
 
+        Optional<Object> enumConstant = JavaClass.getEnumValue(name, internal.getClass());
+
+        if (enumConstant.isPresent())
+            return Optional.of(JavaObject.autoWrap(enumConstant.get()));
+
         List<Method> methods = new ArrayList<>(Arrays.stream(internal.getClass().getDeclaredMethods())
                 .filter((method) -> method.getName().equals(name)).toList());
 
@@ -184,7 +189,8 @@ public class JavaObject implements JavaLike {
      * @return
      */
     public static boolean shouldWrap(Object source) {
-        if(source == null) return false;
+        if (source == null)
+            return false;
 
         if (source instanceof JavaObject) {
             return shouldWrap(((JavaObject) source).internal);

@@ -111,6 +111,7 @@ public class JavaClass implements JavaLike {
      * @return Optional.of if a field is found with that name
      */
     public static Optional<Field> getSrcField(String name, Class<?> type, boolean staticOnly) {
+        type.getEnumConstants();
         try {
             Field found = type.getField(name);
             if (!staticOnly || Modifier.isStatic(found.getModifiers()))
@@ -154,6 +155,37 @@ public class JavaClass implements JavaLike {
             return res;
         else
             return getSrcField(name, type, staticOnly);
+    }
+
+    /**
+     * Get enum constant by name
+     * 
+     * @param name
+     * @param type
+     * @return
+     */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public static Optional<Object> getEnumValue(String name, Class<?> type) {
+        if (type.isEnum()) {
+            try {
+                return Optional.of(Enum.valueOf((Class<Enum>) type, name));
+            } catch (Exception e) {
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    public Optional<Object> getEnumValue(String name) {
+        Class<?> type;
+
+        try {
+            type = Class.forName(String.join(".", mapping.getSrcName().replace('/', '.')));
+        } catch (Exception e) {
+            throw new RuntimeException("Could not get class when getting field: " + e);
+        }
+
+        return getEnumValue(name, type);
     }
 
     @Override
@@ -530,6 +562,11 @@ public class JavaClass implements JavaLike {
                 } catch (Exception e) {
                     throw new RuntimeException("Could not get field for class: " + e);
                 }
+
+            Optional<Object> enumConstant = getEnumValue(name);
+
+            if (enumConstant.isPresent())
+                return Optional.of(JavaObject.autoWrap(enumConstant.get()));
 
             List<Method> methods = new ArrayList<>(Arrays.asList(getMethod(name, true)));
             Optional<JavaLike> parent = getParent();
