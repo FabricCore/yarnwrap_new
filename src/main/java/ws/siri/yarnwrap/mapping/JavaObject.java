@@ -63,7 +63,7 @@ public class JavaObject implements JavaLike {
 
     @Override
     public String toString() {
-        return String.format("JavaObject(%s%s)", internal,
+        return String.format("JavaObject(%s%s)", internal.toString().replace("§", "§§"),
                 type.isPresent() ? " -> " + type.get().stringQualifier() : "");
     }
 
